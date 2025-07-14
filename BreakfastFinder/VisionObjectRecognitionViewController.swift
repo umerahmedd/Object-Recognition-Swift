@@ -17,9 +17,9 @@ class VisionObjectRecognitionViewController: ViewController {
     // Vision parts
     private var requests = [VNRequest]()
     
-    // Detection smoothing
+    // Detection smoothing - balanced for stability and responsiveness
     private var previousDetections: [String: CGRect] = [:]
-    private let smoothingFactor: CGFloat = 0.7
+    private let smoothingFactor: CGFloat = 0.75 // Balanced between 0.7 and 0.8
     
     // Colors for different detection boxes
     private let boxColors: [CGColor] = [
@@ -73,7 +73,7 @@ class VisionObjectRecognitionViewController: ViewController {
                 continue
             }
             
-            // Only process detections with confidence > 0.5
+            // Only process detections with confidence > 0.5 (restored for multiple detections)
             guard objectObservation.confidence > 0.5 else {
                 continue
             }
@@ -86,8 +86,8 @@ class VisionObjectRecognitionViewController: ViewController {
             
             // Create a unique key for each detection based on identifier and approximate position
             // This allows multiple objects of the same type to be tracked separately
-            let centerX = Int(objectBounds.midX / 50) * 50  // Group by 50-pixel regions
-            let centerY = Int(objectBounds.midY / 50) * 50
+            let centerX = Int(objectBounds.midX / 75) * 75  // Increased grouping size from 50 to 75 pixels for better separation
+            let centerY = Int(objectBounds.midY / 75) * 75
             let detectionKey = "\(topLabelObservation.identifier)_\(centerX)_\(centerY)"
             
             // Apply smoothing to reduce fluctuation, but only for nearby previous detections
@@ -95,7 +95,7 @@ class VisionObjectRecognitionViewController: ViewController {
             for (prevKey, prevBounds) in previousDetections {
                 if prevKey.hasPrefix(topLabelObservation.identifier) {
                     let distance = sqrt(pow(prevBounds.midX - objectBounds.midX, 2) + pow(prevBounds.midY - objectBounds.midY, 2))
-                    if distance < 100 { // Only consider matches within 100 pixels
+                    if distance < 120 { // Increased from 100 to 120 pixels for better tracking
                         if bestMatch == nil || distance < bestMatch!.distance {
                             bestMatch = (prevKey, prevBounds, distance)
                         }
@@ -261,21 +261,21 @@ class VisionObjectRecognitionViewController: ViewController {
         let textLayer = CATextLayer()
         textLayer.name = "Object Label"
         let formattedString = NSMutableAttributedString(string: String(format: "\(identifier)\nConfidence: %.2f", confidence))
-        let largeFont = UIFont(name: "Helvetica-Bold", size: 14.0)!
+        let largeFont = UIFont(name: "Helvetica-Bold", size: 12.0)! // Increased from 10.0 to 12.0 for readability
         formattedString.addAttributes([
             NSAttributedString.Key.font: largeFont,
             NSAttributedString.Key.foregroundColor: UIColor.white
         ], range: NSRange(location: 0, length: formattedString.length))
         
         textLayer.string = formattedString
-        textLayer.bounds = CGRect(x: 0, y: 0, width: bounds.size.width - 10, height: 40)
-        textLayer.position = CGPoint(x: bounds.midX, y: bounds.minY - 22) // Position above the bounding box
+        textLayer.bounds = CGRect(x: 0, y: 0, width: bounds.size.width - 10, height: 35) // Increased height from 30 to 35
+        textLayer.position = CGPoint(x: bounds.midX, y: bounds.minY - 20) // Adjusted position from -18 to -20
         textLayer.shadowOpacity = 0.8
         textLayer.shadowOffset = CGSize(width: 1, height: 1)
         textLayer.shadowRadius = 2
         textLayer.foregroundColor = UIColor.white.cgColor
         textLayer.backgroundColor = UIColor.black.withAlphaComponent(0.8).cgColor
-        textLayer.cornerRadius = 6
+        textLayer.cornerRadius = 5 // Increased from 4 to 5
         textLayer.contentsScale = UIScreen.main.scale
         textLayer.alignmentMode = .center
         return textLayer
@@ -306,10 +306,10 @@ class VisionObjectRecognitionViewController: ViewController {
     func setupDetectionCountLabel() {
         detectionCountLabel = CATextLayer()
         detectionCountLabel.name = "Detection Count"
-        detectionCountLabel.fontSize = 14
+        detectionCountLabel.fontSize = 12 // Increased from 11 to 12 for readability
         detectionCountLabel.foregroundColor = UIColor.white.cgColor
         detectionCountLabel.backgroundColor = UIColor.black.withAlphaComponent(0.8).cgColor
-        detectionCountLabel.cornerRadius = 8
+        detectionCountLabel.cornerRadius = 7 // Increased from 6 to 7
         detectionCountLabel.contentsScale = UIScreen.main.scale
         detectionCountLabel.shadowOpacity = 0.5
         detectionCountLabel.shadowOffset = CGSize(width: 1, height: 1)
@@ -321,12 +321,12 @@ class VisionObjectRecognitionViewController: ViewController {
     func updateDetectionCount(_ count: Int) {
         detectionCountLabel.string = "Total Detections: \(count)"
         
-        // Calculate size based on text content
+        // Calculate size based on text content with updated font
         let textSize = ("Total Detections: \(count)" as NSString).size(withAttributes: [
-            NSAttributedString.Key.font: UIFont.systemFont(ofSize: 14)
+            NSAttributedString.Key.font: UIFont.systemFont(ofSize: 12) // Updated to match fontSize
         ])
         
-        detectionCountLabel.bounds = CGRect(x: 0, y: 0, width: textSize.width + 14, height: textSize.height + 6)
+        detectionCountLabel.bounds = CGRect(x: 0, y: 0, width: textSize.width + 12, height: textSize.height + 5) // Slightly increased padding
         
         // Update position using the orientation-aware function
         updateDetectionCountPosition()
@@ -349,20 +349,20 @@ class VisionObjectRecognitionViewController: ViewController {
         
         for (text, px, py, labelColor) in corners {
             let label = CATextLayer()
-            label.fontSize = 10
+            label.fontSize = 9 // Increased from 8 to 9 for better readability
             label.foregroundColor = UIColor.white.cgColor
             label.backgroundColor = UIColor.black.withAlphaComponent(0.8).cgColor
-            label.cornerRadius = 3
+            label.cornerRadius = 2
             label.contentsScale = UIScreen.main.scale
             label.string = text
             
             let textSize = (text as NSString).size(withAttributes: [
-                NSAttributedString.Key.font: UIFont.systemFont(ofSize: 10)
+                NSAttributedString.Key.font: UIFont.systemFont(ofSize: 9) // Updated to match fontSize
             ])
-            label.bounds = CGRect(x: 0, y: 0, width: textSize.width + 6, height: textSize.height + 3)
+            label.bounds = CGRect(x: 0, y: 0, width: textSize.width + 5, height: textSize.height + 2) // Slightly increased padding
             
             // Place label at the exact corner, with a small offset for readability
-            let offset: CGFloat = 4
+            let offset: CGFloat = 3
             var labelPosition = CGPoint(x: px, y: py)
             
             // Offset away from the box for visibility

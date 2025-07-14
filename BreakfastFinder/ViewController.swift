@@ -48,7 +48,8 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
         }
         
         session.beginConfiguration()
-        session.sessionPreset = .vga640x480 // Model image size is smaller.
+        // Use highest resolution preset for better recognition accuracy
+        session.sessionPreset = .hd1920x1080
         
         // Add a video input
         guard session.canAddInput(deviceInput) else {
@@ -76,7 +77,33 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
         // The orientation will be handled by the EXIF orientation in Vision processing
         
         do {
-            try  videoDevice!.lockForConfiguration()
+            try videoDevice!.lockForConfiguration()
+            
+            // Configure for highest frame rate and optimal performance
+            if let format = selectOptimalFormat(for: videoDevice!) {
+                videoDevice!.activeFormat = format
+                
+                // Set maximum frame rate for smoother recognition
+                let maxFrameRate = format.videoSupportedFrameRateRanges.first?.maxFrameRate ?? 30
+                videoDevice!.activeVideoMinFrameDuration = CMTime(value: 1, timescale: CMTimeScale(maxFrameRate))
+                videoDevice!.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: CMTimeScale(maxFrameRate))
+            }
+            
+            // Enable smooth auto focus for consistent recognition
+            if videoDevice!.isSmoothAutoFocusSupported {
+                videoDevice!.isSmoothAutoFocusEnabled = true
+            }
+            
+            // Set focus mode for optimal object detection
+            if videoDevice!.isFocusModeSupported(.continuousAutoFocus) {
+                videoDevice!.focusMode = .continuousAutoFocus
+            }
+            
+            // Enable auto exposure for consistent lighting
+            if videoDevice!.isExposureModeSupported(.continuousAutoExposure) {
+                videoDevice!.exposureMode = .continuousAutoExposure
+            }
+            
             let dimensions = CMVideoFormatDescriptionGetDimensions((videoDevice?.activeFormat.formatDescription)!)
             bufferSize.width = CGFloat(dimensions.width)
             bufferSize.height = CGFloat(dimensions.height)
@@ -90,6 +117,33 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
         rootLayer = previewView.layer
         previewLayer.frame = rootLayer.bounds
         rootLayer.addSublayer(previewLayer)
+    }
+    
+    // Helper function to select the optimal camera format
+    private func selectOptimalFormat(for device: AVCaptureDevice) -> AVCaptureDevice.Format? {
+        let formats = device.formats
+        var bestFormat: AVCaptureDevice.Format?
+        var bestScore = 0
+        
+        for format in formats {
+            let description = format.formatDescription
+            let dimensions = CMVideoFormatDescriptionGetDimensions(description)
+            let frameRateRanges = format.videoSupportedFrameRateRanges
+            
+            // Prefer higher resolution (1080p or better) with high frame rate
+            let resolution = Int(dimensions.width * dimensions.height)
+            let maxFrameRate = frameRateRanges.first?.maxFrameRate ?? 0
+            
+            // Score based on resolution and frame rate
+            let score = resolution + Int(maxFrameRate * 10000)
+            
+            if score > bestScore {
+                bestScore = score
+                bestFormat = format
+            }
+        }
+        
+        return bestFormat
     }
     
     func startCaptureSession() {
